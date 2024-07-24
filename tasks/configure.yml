@@ -1,0 +1,16 @@
+  - name: "[MySQL{{ mysql_version }}] Deploy default my.cnf"
+    template:
+      src: "{{ mysql_version }}_my.conf.j2"
+      dest: "{{ mysql_cnf_path.path }}/{{ mysql_cnf_path.file }}"
+      backup: yes
+      owner: "{{ linux_user }}"
+      group: "{{ linux_user }}"
+      mode: 0640
+
+  - name: "[Systemctl] Create mysql.service systemd config"
+    template:
+      src: mysql.service.j2
+      dest: "{{ mysql_service_cnf_path }}"
+      backup: yes
+      owner: "{{ linux_user }}"
+      group: "{{ linux_user }}"
