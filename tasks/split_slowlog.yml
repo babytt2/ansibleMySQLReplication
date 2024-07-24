@@ -1,0 +1,17 @@
+- name: Create split_slowlog.sh
+  template:
+    src: split_slowlog.sh.j2
+    dest: "{{ install_path }}/bin/split_slowlog.sh"
+    backup: yes
+    owner: "root"
+    group: "root"
+    mode: 0700
+
+- name: set backup cronjob
+  cron:
+    name: "mysql split slowlog"
+    state: present
+    user: root
+    hour: "00"
+    minute: "00"
+    job: "{{ install_path }}/bin/split_slowlog.sh > /dev/null 2>&1"
