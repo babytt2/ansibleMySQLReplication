@@ -1,0 +1,74 @@
+#8.0
+- name: "[MySQL{{ mysql_version }}] Unarchive a Setup file"
+  unarchive:
+    src: "{{ install_src_path }}/{{ mysql_tarfile[mysql_version] }}"
+    dest: "{{ install_path }}"
+    owner: "{{ linux_user }}"
+    group: "{{ linux_user }}"
+    remote_src: no
+  #when: path_exists_xz.stat.exists == False # and mysql_version == "8.0"
+
+# Create Symbolic Link
+- name: "[MySQL{{ mysql_version }}] Create Server symlink: mysql engine directory: tar.xz"
+  file:
+    src: "{{ install_path }}/{{ mysql_tarfile[mysql_version] | regex_replace('.tar.xz','') }}"
+    dest: "{{ mysql_base_path }}"
+    owner: "{{ linux_user }}"
+    group: "{{ linux_user }}"
+    state: link
+    #recurse: yes
+
+
+# Create Symbolic Link (Client)
+- name: "[MySQL{{ mysql_version }}] Create Client symlink: mysql engine directory: tar.xz"
+  file:
+    src: "{{ install_path }}/{{ mysql_tarfile[mysql_version] | regex_replace('.tar.xz','') }}/bin/mysql"
+    dest: "/usr/bin/mysql"
+    owner: "{{ linux_user }}"
+    group: "{{ linux_user }}"
+    state: link
+
+# - name: "[MySQL{{ mysql_version }}] Grant owner/group privileges(xz)"
+#   file:
+#     path: "{{ install_path }}" #/{{ mysql_tarfile[mysql_version] | regex_replace('.tar.xz','')}}"
+#     state: directory
+#     recurse: yes
+#     owner: "{{ linux_user }}"
+#     group: "{{ linux_user }}"
+#   when: tartype_xz.matched|int == 1
+
+# Install MySQL
+- name: "[MySQL] Find mysql data file"
+  find:
+    path: "{{ mysql_data_path }}"
+    patterns: "*"
+  register: db_files
+
+# - name: "[MySQL{{ mysql_version }}] Find mysqld"
+#   find:
+#     path: "{{ mysql_base_path }}/bin"
+#     patterns: "mysqld"
+#     file_type: file
+#     recurse: yes
+#   register: dir_mysql_install
+
+- name: "[MySQL{{ mysql_version }}] if {{ mysql_data_path }} not exists, Install Mysql"
+  command: "{{ mysql_base_path }}/bin/mysqld
+    --defaults-file={{ mysql_cnf_path.path }}/{{ mysql_cnf_path.file }}
+    --initialize
+    --basedir={{ mysql_base_path }}
+    --datadir={{ mysql_data_path }}
+    --user={{ linux_user }}"
+  register: changed_first
+  when: db_files.matched|int == 0
+  # with_items:
+  #   - "{{ dir_mysql_install.files.0.path }}"
+
+# Change mode bin directory recursively
+- name: "[MySQL] Change bin directory mode"
+  file:
+    path: "{{ install_path }}/{{ mysql_tarfile[mysql_version] | regex_replace('.tar.xz','') }}"
+    recurse: yes
+    owner: "{{ linux_user }}"
+    group: "{{ linux_user }}"
+    mode: 0750
