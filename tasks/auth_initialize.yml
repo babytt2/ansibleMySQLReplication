@@ -1,0 +1,51 @@
+# MySQL account(root/agent)
+- name: "[MySQL{{ mysql_version }}] Find 'root' temporary password"
+  shell: "echo `grep 'temporary.*root@localhost' {{ mysql_log_path.errlog }}/{{ ansible_hostname }}.err | sed 's/.*root@localhost: //'`"
+  register: mysql_root_temp_password
+
+- name: "[MySQL{{ mysql_version }}] Alter 'root' password(<8.0)"
+  shell: '{{ mysql_base_path }}/bin/mysql -e "SET PASSWORD = PASSWORD(''{{ sa_pwd }}'');" --connect-expired-password -uroot -p"{{ mysql_root_temp_password.stdout | trim }}"'
+  when: mysql_version == "5.7" and changed_first.changed == true
+
+- name: "[MySQL{{ mysql_version }}] Alter 'root' password(>=8.0)"
+  shell: '{{ mysql_base_path }}/bin/mysql -e "ALTER USER ''root''@''localhost'' IDENTIFIED WITH mysql_native_password BY ''{{ sa_pwd }}''" --connect-expired-password -uroot -p"{{ mysql_root_temp_password.stdout | trim }}"'
+  when: mysql_version == "8.0" and changed_first.changed == true
+
+- name: Set Account Variable
+  set_fact:
+    mysql_admin: 'admin' 
+
+#check user
+- name: "[MySQL{{ mysql_version }}] Check 'admin' user"
+  shell: '{{ mysql_base_path }}/bin/mysql -e "select count(1) from mysql.user where user = ''{{ mysql_agent }}''" -uroot -p"{{ sa_pwd }}"'
+  register: check_agent_user
+
+- name: "[MySQL{{ mysql_version }}] Check 'repl' user"
+  shell: '{{ mysql_base_path }}/bin/mysql -e "select count(1) from mysql.user where user = ''repl''" -uroot -p"{{ sa_pwd }}"'
+  register: check_repl_user
+
+
+#prod
+#'agent'@'%': All privileges, *.*
+- name: "[MySQL{{ mysql_version }}_prod] Create 'admin' user"
+  shell: '{{ mysql_base_path }}/bin/mysql -e "CREATE USER ''{{ mysql_admin }}''@''%'' IDENTIFIED WITH mysql_native_password BY ''{{ admin_pwd }}''; GRANT ALL PRIVILEGES ON *.* TO ''{{ mysql_admin }}''@''%'' with grant option;" -uroot -p"{{ sa_pwd }}"'
+  when: check_agent_user.stdout_lines[1] == "0" and stage == "prod"
+
+#'agent'@'localhost': All privileges, *.*
+- name: "[MySQL{{ mysql_version }}_prod] Create 'admin' user"
+  shell: '{{ mysql_base_path }}/bin/mysql -e "CREATE USER ''{{ mysql_admin }}''@''localhost'' IDENTIFIED WITH mysql_native_password BY ''{{ admin_pwd }}''; GRANT ALL PRIVILEGES ON *.* TO ''{{ mysql_admin }}''@''localhost'' with grant option;" -uroot -p"{{ sa_pwd }}"'
+  when: check_agent_user.stdout_lines[1] == "0" and stage == "prod"
+
+#fatal: [10.10.10.111]: FAILED! => {"changed": false, "msg": "unable to connect to database, check login_user and login_password are correct or /root/.my.cnf has the credentials. Exception message: (1043, u'Bad handshake')"}
+#- name: "[MySQL{{ mysql_version }}] Create 'admin' user"
+#  mysql_user:
+#    login_unix_socket: "{{ mysql_data_path }}/mysql.sock"
+#    login_user: root
+#    login_password: "{{ sa_pwd }}"
+#    name: "{{ mysql_admin }}"
+#    password: "{{ admin_pwd }}"
+#    update_password: always
+#    host: '%'
+#    priv: "*.*:ALL,GRANT"
+#    state: present
+
