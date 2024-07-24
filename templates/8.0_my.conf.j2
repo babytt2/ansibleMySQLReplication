@@ -1,0 +1,193 @@
+{{ ansible_managed | comment }}
+
+#MySQL Configuration
+
+[client]
+port = 3306
+socket = {{ mysql_data_path }}/mysql.sock
+default-character-set = utf8
+
+[mysqld_safe]
+socket = {{ mysql_data_path }}/mysql.sock
+nice = 0
+
+
+[mysqld]
+# general settings
+user = mysql
+port = 3306
+#extra_max_connections = 10                 #Only MariaDB
+socket = {{ mysql_data_path }}/mysql.sock
+pid-file = {{ mysql_data_path }}/mysql.pid
+
+basedir = {{ mysql_base_path }}
+datadir = {{ mysql_data_path }}
+tmpdir = {{ mysql_tmp_path }}
+
+
+character-set-server = utf8mb4
+character-set-client-handshake = FALSE
+collation-server = utf8mb4_unicode_ci
+#init_connect = utf8mb4                      #check this configuration
+
+default-storage-engine = InnoDB
+
+skip-external-locking
+skip-name-resolve
+
+log_timestamps = SYSTEM
+log_error_verbosity = 2           #errorlog only(1: ERROR, 2: WARNING + ERROR, 3: INFO + WARNING + ERROR)
+
+bind-address = 0.0.0.0
+
+local-infile = 0
+transaction-isolation = REPEATABLE-READ
+open_files_limit = 65535
+
+tmp_table_size = {{ (ansible_memtotal_mb*64/1024)|int }}M       #need to be caculated from facts variable
+max_heap_table_size = {{ (ansible_memtotal_mb*64/1024)|int }}M
+
+sort_buffer_size = 2M
+join_buffer_size = 2M
+max_length_for_sort_data = 1024
+#redo_buffer_size = 2M           #MyISAM
+read_rnd_buffer_size = 16M
+
+# locale messages
+#lc_messages_dir = {{ mysql_base_path }}/share/
+#lc_messages = en_US
+
+# MyISAM
+key_buffer_size = 128M
+bulk_insert_buffer_size = 64M
+myisam_sort_buffer_size = 128M
+myisam_max_sort_file_size = 512M
+myisam_repair_threads = 1
+#myisam_recover
+#ft_min_sord_len = 4
+
+
+max_allowed_packet = 64M
+#thread_stack = 192K
+#thread_chace_size = 64
+#thread_concurrency         #Only MariaDB, deprecated from MySQL 5.7.2
+#thread_handling            #Only MariaDB, deprecated from MySQL 5.7.2
+
+{% if (ansible_memtotal_mb/1000)|int <= 8 %}
+max_connections = 500
+{% elif (ansible_memtotal_mb/1000)|int <= 16 %}
+max_connections = 1000
+{% elif (ansible_memtotal_mb/1000)|int <= 32 %}
+max_connections = 2000
+{% elif (ansible_memtotal_mb/1000)|int <= 64 %}
+max_connections = 4000
+{% else %}
+max_connections = 4000
+{% endif %}
+
+max_connect_errors = 99999
+
+performance_schema = ON
+table_open_cache = 2048
+#query_cache_limit = 2M                       #Only MariaDB & MySQL 5.7, deprecated from MySQL 8.0.3
+#query_cache_size = 128M                      #Only MariaDB & MySQL 5.7, deprecated from MySQL 8.0.3
+#query_cache_type = 2                         #Only MariaDB
+
+
+log-error={{ mysql_log_path.errlog }}/{{ ansible_hostname }}.err
+#log-output = file
+#log-queries-not-using-indexes
+back_log = 1024                 #do not calculate! 50 + (max_connections/5)&it 900, My8.0 = max_connection
+
+# general log
+general_log_file = {{ mysql_log_path.logs }}/{{ ansible_hostname }}-general.log
+general_log = 0
+
+# slowlog
+slow_query_log = 1
+slow_query_log_file = {{ mysql_log_path.slowlog }}/{{ ansible_hostname }}-slow.log
+long_query_time = 3
+
+event_scheduler = 1
+
+
+# replication & binlog
+server-id = {{ (mysql_conf_serverid | replace('.', '')) | int }}
+#binlog_do_db
+#binlog-ignore-db=performance_schema
+#binlog-ignore-db=information_schema
+#binlog-ignore-db=sys
+log_slave_updates = 1
+slave-net-timeout = 10
+
+sync_binlog = 1
+binlog_format = row
+log-bin = {{ mysql_log_path.binlog }}/mysql-log-bin
+log_bin_trust_function_creators = 1
+binlog_cache_size = 1M
+binlog-cache-size = 1M
+
+binlog_row_image = minimal                #related to row based replication
+binlog_expire_logs_seconds = 604800          
+max_binlog_size = 100M
+
+
+# innodb
+innodb_force_recovery = 0
+innodb_data_home_dir = {{ mysql_data_path }}
+innodb_file_per_table = 1
+#innodb_data_file_path = ibdata1:1G;ibdata2:1G;ibdata3:1G:autoextend       #not configure this value when innodb_file_per_table = 1
+{% if ansible_processor_cores < 4 %}
+innodb_write_io_threads = {{ ansible_processor_cores }}
+{% else %}
+innodb_write_io_threads = {{ (ansible_processor_cores / 4) | int }}
+{% endif %}
+innodb_read_io_threads = {{ ansible_processor_cores }}
+innodb_max_dirty_pages_pct = 75                                 #75%
+innodb_flush_method = O_DIRECT
+innodb_log_group_home_dir = {{ mysql_log_path.redolog }}
+innodb_buffer_pool_size = {{ (ansible_memtotal_mb*0.5)|int }}M
+
+#innodb_buffer_pool_instances = 8                                               #Only MariaDB
+#innodb_buffer_pool_chunk_size = {{ ((ansible_memtotal_mb*0.7)|int)/8|int }}    #Only MariaDB, innodb_buffer_pool_size/innodb_buffer_pool_instances
+
+innodb_log_file_size = 1G
+innodb_log_files_in_group = 3
+innodb_log_buffer_size = 16M
+innodb_flush_log_at_trx_commit = 1
+innodb_lock_wait_timeout = 10
+#innodb_checksum_algorithm
+innodb_thread_sleep_delay = 0
+innodb_fast_shutdown = 1
+innodb_autoinc_lock_mode = 1              # set 2 on galera-cluster
+innodb_thread_concurrency = {{ ansible_processor_cores*2 }}
+innodb_doublewrite = 0
+#innodb_support_xa = on  #[ERROR] [MY-000067] [Server] unknown variable 'innodb_support_xa=on'.
+
+
+default_password_lifetime = 0
+explicit_defaults_for_timestamp
+
+#semi_sync
+#rpl_semi_sync_master_enabled=1
+#rpl_semi_sync_master_timeout=10000 # 10초
+
+#rpl_semi_sync_slave_enabled=1
+
+
+# MySQL 8.0 only
+#validate_password_check_user_name = on  #[ERROR] [MY-000067] [Server] unknown variable 'validate_password_check_user_name=on'.
+#generated_random_password_length = 50 #[ERROR] [MY-000067] [Server] unknown variable 'generated_random_password_length=50'.
+information_schema_stats_expiry = 86400
+#internal_tmp_disk_storage_engine = INNODB #[ERROR] [MY-000067] [Server] unknown variable 'internal_tmp_disk_storage_engine=INNODB'.
+#log_error_services     #defualt: log_error_services
+password_history = 0
+
+[mysqldump]
+quick
+quote-names
+max_allowed_packet = 16M
+
+
+[mysql]
+no-auto-rehash
