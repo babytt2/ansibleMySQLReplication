@@ -1,0 +1,59 @@
+- name: "[prod] include decrypted password"
+  include_vars:
+    file: live_password.yml
+    name: account_password
+  #no_log: True
+  when: stage=="prod"
+
+- name: set password
+  set_fact:
+    "{{ item.key }}": "{{ item.value }}"
+  with_dict: "{{ account_password }}"
+  no_log: True
+
+#- name: "[MySQL{{ mysql_version }}] Check mysql service"
+#  service_facts:
+#- fail:
+#    msg: MySQL Already Installed!! Ansible terminates this playbook. ByeBye~!
+#  when: ansible_facts.services["mysql.service"] is defined
+
+- name: "[{{ os_info }}] Set environment to install mysql"
+  include: pretask.yml
+  when: mysql_install == true
+
+- name: "[{{ os_info }}] Set Config"
+  include: configure.yml
+  when: mysql_install == true
+
+- name: "[{{ os_info }}] Install Mysql"
+  include: install_debian_{{ mysql_version }}.yml
+  when: mysql_install == true
+
+- name: "[{{ os_info }}] Use the Systemctl command"
+  include: set_systemctl.yml
+  when: mysql_install == true
+
+- name: "[{{ os_info }}] Initialize MySQL accrount to auth"
+  include: auth_initialize.yml
+
+- name: Set split slowlog Cron job
+  include: split_slowlog.yml
+  tags: [slowlog]
+
+- name: Send a result mail.
+  mail:
+    host: {{ stmp file server }}
+    port: 25
+    subject: 'Installation Report from {{ ansible_fqdn }}'
+    body: |
+      [{{ stage }}] mysql{{mysql_version}} installation successfully completed.
+
+      hostname : {{ ansible_fqdn }}
+      IP : {{ ansible_all_ipv4_addresses[0] }}
+
+    to: '{{ mail_recipient }}'
+    from: '{{ mail sender }}'
+    timeout: 60
+    secure: never
+  ignore_errors: yes
+  tags: [mail]
