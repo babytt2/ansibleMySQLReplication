@@ -1,0 +1,19 @@
+#!/bin/bash
+
+# Variables
+HOSTNAME=`hostname`
+DATE=`date -d yesterday +%Y%m%d`
+LOG_DIR=/data/logs/slowlog
+SPLIT_LOG_DIR=${LOG_DIR}/split_slowlog
+
+# make directory
+mkdir -p ${LOG_DIR}/split_slowlog
+
+# cut a current log file out to split-log-file
+cp $LOG_DIR/${HOSTNAME}-slow.log ${SPLIT_LOG_DIR}/${DATE}-${HOSTNAME}-slow.log
+
+# set the log-file size to 0
+cp -f /dev/null $LOG_DIR/${HOSTNAME}-slow.log
+
+# delete slowlog order than 31 days 
+rm `find ${SPLIT_LOG_DIR} -mtime +30`
