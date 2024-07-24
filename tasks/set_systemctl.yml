@@ -1,0 +1,38 @@
+# mysql.service
+- name: "[Systemctl] Create symlink:mysql.service"
+  file:
+    src: "{{ mysql_service_cnf_path }}"
+    dest: "{{ link_mysql_service_path }}/mysql.service"
+    state: link
+
+- name: "[Systemctl] Daemon reload"
+  systemd:
+    name: mysql.service
+    daemon_reload: yes
+    enabled: yes
+
+# environment path
+- name: "[MySQL] Add another bin dir to system-wide $path"
+  lineinfile:
+    path: /etc/profile
+    line: 'PATH=$PATH:"{{ mysql_base_path }}/bin"'
+
+- name: "[MySQL] source profile"
+  shell: source /etc/profile
+  args:
+    executable: /bin/bash
+
+# restart
+- name: "[Systemctl] Mysql Daemon start"
+  systemd:
+    name: mysql.service
+    state: restarted
+
+- name: check
+  command: systemctl status mysql.service
+
+- name: "[MySQL{{ mysql_version }}] Wait until mysql.service port is opened"
+  wait_for:
+    host: 0.0.0.0
+    port: 3306
+    #timeout: 60
