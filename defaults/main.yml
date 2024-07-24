@@ -1,0 +1,33 @@
+---
+mysql_version: "5.7"   # mysql version : "5.7" , "8.0"
+linux_user: mysql
+
+os_info: "{{ hostvars[inventory_hostname].ansible_distribution }} {{ hostvars[inventory_hostname].ansible_distribution_version }}"
+
+mysql_tarfile:
+  "5.7" : "mysql-5.7.27-linux-glibc2.12-x86_64.tar.gz"
+  "8.0" : "mysql-8.0.21-linux-glibc2.12-x86_64.tar.xz"
+
+install_src_path: /ansible/sources/
+install_path: /usr/local
+
+mysql_base_path: /home/mysql/mysql
+mysql_cnf_path:
+  "path" : "/etc/mysql"
+  "file" : "my.cnf"
+mysql_data_path: /data/dbfiles
+mysql_log_path:
+  "logs" : "/data/logs"
+  "binlog" : "/data/logs/binlog"
+  "errlog" : "/data/logs/errlog"
+  "slowlog" : "/data/logs/slowlog"
+  "redolog" : "/data/logs/redolog"
+mysql_backup_path: /data/backup
+mysql_tmp_path: /data/tmp/
+mysql_repl_path: /data/mysql_repl
+
+mysql_service_cnf_path: /lib/systemd/system/mysql.service
+link_mysql_service_path: /etc/systemd/system/multi-user.target.wants
+
+mysql_conf_serverid:
+  "{{ (ansible_all_ipv4_addresses[0])[8:] | replace('.', '') }}.{{ 99 | random }}"
