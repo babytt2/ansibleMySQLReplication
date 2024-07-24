@@ -1,0 +1,15 @@
+[Unit]
+Description=mysql
+After=network.target
+
+[Service]
+User={{ linux_user }}
+Group={{ linux_user }}
+LimitNOFILE=65535
+LimitNPROC=65535
+ExecStart={{ mysql_base_path }}/bin/mysqld --defaults-file={{ mysql_cnf_path.path }}/{{ mysql_cnf_path.file }}
+Restart=on-failure
+#Type=notify
+
+[Install]
+WantedBy=multi-user.target
