@@ -1,0 +1,53 @@
+- name: "[{{ os_info }}] update apt cache"
+  apt:
+    update_cache: yes
+  ignore_errors: true
+
+- name: "[{{ os_info }}] Install Packages"
+  apt:
+    name: ['python-apt','curl','gcc','cpp','openssl','bison','libaio-dev','expect','gzip','sshpass','python-pymysql']
+    state: latest
+
+- name: "[MySQL{{ mysql_version }}] Create mysql group"
+  group:
+    name: "{{ linux_user }}"
+    state: present
+
+- name: "[MySQL{{ mysql_version }}] Create mysql user"
+  user:
+    name: "{{ linux_user }}"
+    group: "{{ linux_user }}"
+    shell: /bin/bash
+
+- name: "[MySQL{{ mysql_version }}] Create directory"
+  file:
+    path: "{{ item }}"
+    state: directory
+    recurse: yes
+    owner: "{{ linux_user }}"
+    group: "{{ linux_user }}"
+    mode: 0755
+  with_items:
+    - "{{ mysql_cnf_path.path }}"
+    - "{{ mysql_log_path.binlog }}"
+    - "{{ mysql_log_path.errlog }}"
+    - "{{ mysql_log_path.redolog }}"
+    - "{{ mysql_log_path.slowlog }}"
+    - "{{ mysql_backup_path }}"
+    - "{{ mysql_tmp_path }}"
+
+- name: "[MySQL{{ mysql_version }}] Add nofile pam_limits for mysql domain with enforcing both hard and soft types to /etc/security/limits.conf"
+  pam_limits:
+    dest: "/etc/security/limits.conf"
+    domain: "{{ linux_user }}"
+    limit_type: "-"
+    limit_item: "nofile"
+    value: 65535
+
+- name: "[MySQL{{ mysql_version }}] Add nproc pam_limits for mysql domain with enforcing both hard and soft types to /etc/security/limits.conf"
+  pam_limits:
+    dest: "/etc/security/limits.conf"
+    domain: "{{ linux_user }}"
+    limit_type: "-"
+    limit_item: "nproc"
+    value: 65535
