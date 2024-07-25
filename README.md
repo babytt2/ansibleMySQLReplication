@@ -11,11 +11,9 @@ This Ansible role installs MySQL and configures replication automatically on bot
 # inventory
 ~~~
 [master]
-<br>
 10.10.10.111 #masterip
 
 [replica]
-<br>
 10.10.10.112 #replicaip
 ~~~
 
