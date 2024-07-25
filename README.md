@@ -2,7 +2,7 @@
 
 This Ansible role installs MySQL and configures replication automatically on both on-premises and cloud-based EC2 instances.
 
-## Requirements
+# Requirements
 
 - Ansible 2.9+
 - EC2 instances with SSH access
