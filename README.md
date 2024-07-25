@@ -9,14 +9,20 @@ This Ansible role installs MySQL and configures replication automatically on bot
 - MySQL repository access
 
 # inventory
+~~~
+[INST]
 [master]
+<br>
 10.10.10.111 #masterip
 
 [replica]
+<br>
 10.10.10.112 #replicaip
-
+~~~
 
 # Example Playbook
+~~~
+[INST]
 - hosts: master
   become: yes
   gather_facts: yes
@@ -39,3 +45,4 @@ This Ansible role installs MySQL and configures replication automatically on bot
     when: "'replica' in group_names"
   roles:
     - replication
+~~~
